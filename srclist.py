@@ -5,14 +5,61 @@ import requests
 import os
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-#
-version = "0.00"     
+# 24/12/20 v0.01 結果をhtmlに出力する
+version = "0.01"     
 
 out =  ""
 logf = ""
 appdir = os.path.dirname(os.path.abspath(__file__))
 conffile = appdir + "/repoview.conf"
+resultfile = appdir + "/srclist.htm" 
+templatefile = appdir + "/repo_templ.htm"
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+#   全情報
+#     キー  repo名  値  file_data 
+#                      file_data  キー filename  値  attr  キー  line  cdate message
+repo_info = {}
+
+def main():
+    read_config()
+
+    if not proxy == "noproxy" :
+        os.environ['https_proxy'] = proxy
+
+    if not token:
+        print("Error: GitHub token is not set in the environment variables.")
+        return
+
+    repositories = get_repositories(username, token)
+    
+    n = 0 
+    for repo_name in repositories:
+        n += 1
+        print(f"\nRepository: {repo_name}")
+        files = get_files_in_repository(username, repo_name, token)
+        
+        file_data = {}
+        for file_path in files:
+            line_count, last_commit_date, last_commit_message = get_file_details(username, repo_name, file_path, token)
+            #print(f"{file_path}: {line_count} lines, Last Commit: {last_commit_date}, Message: {last_commit_message}")
+            attr = {}            
+            attr['line'] = line_count
+            attr['cdate'] = last_commit_date
+            attr['message'] = last_commit_message
+            file_data[file_path] = attr
+
+        repo_info[repo_name] = file_data
+
+    print(repo_info)
+
+    parse_template()
+
+def output_srclist() :
+    for reponame,file_data in repo_info.items() :
+        for filen,attr in file_data.items() :
+            line = attr['line']
+            out.write(f'<tr><td>{reponame}</td><td>{filen}</td><td>{attr["line"]}</td><td>{attr["cdate"]}</td><td>{attr["message"]}</td></tr>\n')
 
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
@@ -63,6 +110,26 @@ def get_file_details(username, repo_name, file_path, token):
 
     return line_count, last_commit_date, last_commit_message
 
+def parse_template() :
+    global out 
+    f = open(templatefile , 'r', encoding='utf-8')
+    out = open(resultfile,'w' ,  encoding='utf-8')
+    for line in f :
+        if "%srclist%" in line :
+            output_srclist()
+            continue
+        # if "%version%" in line :
+        #     s = line.replace("%version%",version)
+        #     out.write(s)
+        #     continue
+        # if "%today%" in line :
+        #     output_current_date(line)
+        #     continue
+        out.write(line)
+
+    f.close()
+    out.close()
+
 def read_config() : 
     global username,proxy,token,debug
     if not os.path.isfile(conffile) :
@@ -77,25 +144,6 @@ def read_config() :
     conf.close()
 
 
-def main():
-    read_config()
-
-    if not proxy == "noproxy" :
-        os.environ['https_proxy'] = proxy
-
-    if not token:
-        print("Error: GitHub token is not set in the environment variables.")
-        return
-
-    repositories = get_repositories(username, token)
-    
-    for repo_name in repositories:
-        print(f"\nRepository: {repo_name}")
-        files = get_files_in_repository(username, repo_name, token)
-        
-        for file_path in files:
-            line_count, last_commit_date, last_commit_message = get_file_details(username, repo_name, file_path, token)
-            print(f"{file_path}: {line_count} lines, Last Commit: {last_commit_date}, Message: {last_commit_message}")
 
 if __name__ == "__main__":
     main()
