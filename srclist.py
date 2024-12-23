@@ -3,10 +3,12 @@
 
 import requests
 import os
+import pytz
+from datetime import datetime
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 24/12/20 v0.01 結果をhtmlに出力する
-version = "0.01"     
+# 24/12/23 v0.02 日時をJSTにする
+version = "0.02"     
 
 out =  ""
 logf = ""
@@ -36,6 +38,8 @@ def main():
     n = 0 
     for repo_name in repositories:
         n += 1
+        if debug == 1 and n > 3 :     #  debug 
+            break 
         print(f"\nRepository: {repo_name}")
         files = get_files_in_repository(username, repo_name, token)
         
@@ -56,10 +60,18 @@ def main():
     parse_template()
 
 def output_srclist() :
+    utc = pytz.utc
+    jst = pytz.timezone("Asia/Tokyo")
     for reponame,file_data in repo_info.items() :
         for filen,attr in file_data.items() :
             line = attr['line']
-            out.write(f'<tr><td>{reponame}</td><td>{filen}</td><td>{attr["line"]}</td><td>{attr["cdate"]}</td><td>{attr["message"]}</td></tr>\n')
+            
+            dt = datetime.strptime(attr["cdate"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=utc)
+            date_jst = dt.astimezone(jst)
+            #dt = dt.replace(tzinfo=pytz.UTC)
+            dt_str = date_jst.strftime("%y/%m/%d %H:%M")
+            out.write(f'<tr><td>{reponame}</td><td>{filen}</td><td align="right">{attr["line"]}</td>'
+                      f'<td>{dt_str}</td><td>{attr["message"]}</td></tr>\n')
 
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
