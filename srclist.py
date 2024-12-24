@@ -7,8 +7,8 @@ import pytz
 from datetime import datetime
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 24/12/23 v0.02 日時をJSTにする
-version = "0.02"     
+# 24/12/24 v0.03 repoごとの合計行を表示
+version = "0.03"     
 
 out =  ""
 logf = ""
@@ -55,23 +55,34 @@ def main():
 
         repo_info[repo_name] = file_data
 
-    print(repo_info)
+    #print(repo_info)
 
     parse_template()
 
 def output_srclist() :
     utc = pytz.utc
     jst = pytz.timezone("Asia/Tokyo")
-    for reponame,file_data in repo_info.items() :
+    prev_repo = ""
+    for repo,file_data in repo_info.items() :
+        total_line = 0 
+
         for filen,attr in file_data.items() :
-            line = attr['line']
-            
+            if repo != prev_repo :   #  同じrepoの時は最初の行のみ repo名を表示
+                prev_repo = repo
+                reponame = repo
+            else :              
+                reponame = ""
+
             dt = datetime.strptime(attr["cdate"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=utc)
             date_jst = dt.astimezone(jst)
             #dt = dt.replace(tzinfo=pytz.UTC)
             dt_str = date_jst.strftime("%y/%m/%d %H:%M")
+            total_line += int(attr["line"])
             out.write(f'<tr><td>{reponame}</td><td>{filen}</td><td align="right">{attr["line"]}</td>'
                       f'<td>{dt_str}</td><td>{attr["message"]}</td></tr>\n')
+
+        out.write(f'<tr><td>合計</td><td>---</td><td align="right">{total_line}</td>'
+                      f'<td>---</td><td>---</td></tr>\n')
 
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
