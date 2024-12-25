@@ -7,8 +7,8 @@ import pytz
 from datetime import datetime
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 24/12/24 v0.03 repoごとの合計行を表示
-version = "0.03"     
+# 24/12/25 v0.04 合計行の背景色を変更
+version = "0.04"     
 
 out =  ""
 logf = ""
@@ -63,6 +63,7 @@ def output_srclist() :
     utc = pytz.utc
     jst = pytz.timezone("Asia/Tokyo")
     prev_repo = ""
+    all_line = 0 
     for repo,file_data in repo_info.items() :
         total_line = 0 
 
@@ -78,11 +79,15 @@ def output_srclist() :
             #dt = dt.replace(tzinfo=pytz.UTC)
             dt_str = date_jst.strftime("%y/%m/%d %H:%M")
             total_line += int(attr["line"])
+            all_line += int(attr["line"])
             out.write(f'<tr><td>{reponame}</td><td>{filen}</td><td align="right">{attr["line"]}</td>'
                       f'<td>{dt_str}</td><td>{attr["message"]}</td></tr>\n')
 
-        out.write(f'<tr><td>合計</td><td>---</td><td align="right">{total_line}</td>'
-                      f'<td>---</td><td>---</td></tr>\n')
+        out.write(f'<tr><td class=all>合計</td><td class=all>---</td><td class=all align="right">{total_line}</td>'
+                      f'<td class=all>---</td><td class=all>---</td></tr>\n')
+
+    out.write(f'<tr><td class=all>全合計</td><td class=all>---</td><td class=all align="right">{all_line}</td>'
+              f'<td class=all>---</td><td class=all>---</td></tr>\n')
 
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
