@@ -5,10 +5,12 @@ import requests
 import os
 import pytz
 from datetime import datetime
+from datetime import date,timedelta
+
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 24/12/25 v0.04 合計行の背景色を変更
-version = "0.04"     
+# 24/12/26 v0.05 バージョン、実行日時を表示
+version = "0.06"     
 
 out =  ""
 logf = ""
@@ -138,6 +140,12 @@ def get_file_details(username, repo_name, file_path, token):
 
     return line_count, last_commit_date, last_commit_message
 
+def output_current_date(s):
+    today_datetime = datetime.today()
+    d = today_datetime.strftime("%m/%d %H:%M")
+    s = s.replace("%today%",d)
+    out.write(s)
+
 def parse_template() :
     global out 
     f = open(templatefile , 'r', encoding='utf-8')
@@ -146,13 +154,13 @@ def parse_template() :
         if "%srclist%" in line :
             output_srclist()
             continue
-        # if "%version%" in line :
-        #     s = line.replace("%version%",version)
-        #     out.write(s)
-        #     continue
-        # if "%today%" in line :
-        #     output_current_date(line)
-        #     continue
+        if "%version%" in line :
+            s = line.replace("%version%",version)
+            out.write(s)
+            continue
+        if "%today%" in line :
+            output_current_date(line)
+            continue
         out.write(line)
 
     f.close()
