@@ -9,8 +9,8 @@ from datetime import date,timedelta
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 24/12/26 v0.05 バージョン、実行日時を表示
-version = "0.06"     
+# 24/12/27 v0.07 repoごと、全体の行数、ファイル数を表示
+version = "0.07"     
 
 out =  ""
 logf = ""
@@ -25,7 +25,16 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 #                      file_data  キー filename  値  attr  キー  line  cdate message
 repo_info = {}
 
+#   repoごとの 全行数、ファイル数、最終更新日 を保持する
+#     キー  repo名  値  repo_data  キー  line  num_file  lastdate
+repo_line = {}
+
+all_line = 0      # 全行数
+all_num_file = 0  # 全ファイル数
+
+
 def main():
+    global  all_line, all_num_file
     read_config()
 
     if not proxy == "noproxy" :
@@ -38,6 +47,8 @@ def main():
     repositories = get_repositories(username, token)
     
     n = 0 
+    all_line = 0 
+    all_num_file = 0 
     for repo_name in repositories:
         n += 1
         if debug == 1 and n > 3 :     #  debug 
@@ -46,6 +57,8 @@ def main():
         files = get_files_in_repository(username, repo_name, token)
         
         file_data = {}
+        total_line = 0 
+        num_file = 0
         for file_path in files:
             line_count, last_commit_date, last_commit_message = get_file_details(username, repo_name, file_path, token)
             #print(f"{file_path}: {line_count} lines, Last Commit: {last_commit_date}, Message: {last_commit_message}")
@@ -54,20 +67,26 @@ def main():
             attr['cdate'] = last_commit_date
             attr['message'] = last_commit_message
             file_data[file_path] = attr
+            total_line += line_count
+            all_line += line_count
+            num_file += 1 
+            all_num_file += 1
 
         repo_info[repo_name] = file_data
+        repo_data = {}
+        repo_data['line'] = total_line
+        repo_data['num_file'] = num_file
+        repo_line[repo_name] = repo_data
 
-    #print(repo_info)
-
+    print(repo_line)
     parse_template()
 
 def output_srclist() :
     utc = pytz.utc
     jst = pytz.timezone("Asia/Tokyo")
     prev_repo = ""
-    all_line = 0 
+    #all_line = 0 
     for repo,file_data in repo_info.items() :
-        total_line = 0 
 
         for filen,attr in file_data.items() :
             if repo != prev_repo :   #  同じrepoの時は最初の行のみ repo名を表示
@@ -80,15 +99,20 @@ def output_srclist() :
             date_jst = dt.astimezone(jst)
             #dt = dt.replace(tzinfo=pytz.UTC)
             dt_str = date_jst.strftime("%y/%m/%d %H:%M")
-            total_line += int(attr["line"])
-            all_line += int(attr["line"])
+            #total_line += int(attr["line"])
+            #all_line += int(attr["line"])
+            repo_data = repo_line[repo]
+            total_line = repo_data['line']
+            num_file = repo_data['num_file']
             out.write(f'<tr><td>{reponame}</td><td>{filen}</td><td align="right">{attr["line"]}</td>'
                       f'<td>{dt_str}</td><td>{attr["message"]}</td></tr>\n')
 
-        out.write(f'<tr><td class=all>合計</td><td class=all>---</td><td class=all align="right">{total_line}</td>'
-                      f'<td class=all>---</td><td class=all>---</td></tr>\n')
+        out.write(f'<tr><td class=all>合計</td><td class=all  align="right">{num_file}</td>'
+                  f'<td class=all align="right">{total_line}</td>'
+                  f'<td class=all>---</td><td class=all>---</td></tr>\n')
 
-    out.write(f'<tr><td class=all>全合計</td><td class=all>---</td><td class=all align="right">{all_line}</td>'
+    out.write(f'<tr><td class=all>全合計</td><td class=all align="right">{all_num_file}</td>'
+              f'<td class=all align="right">{all_line}</td>'
               f'<td class=all>---</td><td class=all>---</td></tr>\n')
 
 def get_repositories(username, token):
