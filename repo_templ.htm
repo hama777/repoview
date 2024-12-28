@@ -1,4 +1,4 @@
-<!-- 24/12/26 v0.05 バージョン、実行日時を表示 -->
+<!-- 24/12/28 v0.08 repo一覧追加 -->
 <html>
     <head>
         <title>Source List</title>
@@ -16,5 +16,11 @@
          <tr><th>リポジトリ</th><th>file名</th><th>行数</th><th>日付</th><th>コメント</th></tr>
             %srclist% 
         </table>
-    </body>
+
+        <h1>Repo List</h1>
+        <table>
+            <tr><th>リポジトリ</th><th>file数</th><th>行数</th><th>最終日付</th></tr>
+               %repolist% 
+           </table>
+       </body>
 </html>
