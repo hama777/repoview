@@ -9,8 +9,8 @@ from datetime import date,timedelta
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 24/12/27 v0.07 repoごと、全体の行数、ファイル数を表示
-version = "0.07"     
+# 24/12/28 v0.08 repo一覧追加
+version = "0.08"     
 
 out =  ""
 logf = ""
@@ -115,6 +115,13 @@ def output_srclist() :
               f'<td class=all align="right">{all_line}</td>'
               f'<td class=all>---</td><td class=all>---</td></tr>\n')
 
+def output_repolist() : 
+    for reponame,repo_data in repo_line.items():
+        num_file = repo_data['num_file']
+        line = repo_data['line']
+        out.write(f'<tr><td>{reponame}</td><td align="right">{num_file}</td>'
+                  f'<td>{line}</td><td>---</td></tr>')
+
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
     headers = {"Authorization": f"token {token}"}
@@ -177,6 +184,9 @@ def parse_template() :
     for line in f :
         if "%srclist%" in line :
             output_srclist()
+            continue
+        if "%repolist%" in line :
+            output_repolist()
             continue
         if "%version%" in line :
             s = line.replace("%version%",version)
