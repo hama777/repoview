@@ -9,8 +9,8 @@ from datetime import date,timedelta
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 24/12/28 v0.08 repo一覧追加
-version = "0.08"     
+# 24/12/30 v0.09 repo一覧に最終更新日時を追加
+version = "0.09"     
 
 out =  ""
 logf = ""
@@ -26,7 +26,7 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 repo_info = {}
 
 #   repoごとの 全行数、ファイル数、最終更新日 を保持する
-#     キー  repo名  値  repo_data  キー  line  num_file  lastdate
+#     キー  repo名  値  repo_data  キー  line  num_file  last_update
 repo_line = {}
 
 all_line = 0      # 全行数
@@ -35,6 +35,9 @@ all_num_file = 0  # 全ファイル数
 
 def main():
     global  all_line, all_num_file
+    utc = pytz.utc
+    jst = pytz.timezone("Asia/Tokyo")
+
     read_config()
 
     if not proxy == "noproxy" :
@@ -59,26 +62,32 @@ def main():
         file_data = {}
         total_line = 0 
         num_file = 0
+        last_update =  datetime(2000, 1, 1, 0, 0, 0)
         for file_path in files:
             line_count, last_commit_date, last_commit_message = get_file_details(username, repo_name, file_path, token)
             #print(f"{file_path}: {line_count} lines, Last Commit: {last_commit_date}, Message: {last_commit_message}")
             attr = {}            
+            dt = datetime.strptime(last_commit_date, "%Y-%m-%dT%H:%M:%SZ")
+            dt = dt + timedelta(hours=9)
             attr['line'] = line_count
-            attr['cdate'] = last_commit_date
+            attr['cdate'] = dt
             attr['message'] = last_commit_message
             file_data[file_path] = attr
             total_line += line_count
             all_line += line_count
             num_file += 1 
             all_num_file += 1
+            if dt > last_update :
+                last_update = dt
 
         repo_info[repo_name] = file_data
         repo_data = {}
         repo_data['line'] = total_line
         repo_data['num_file'] = num_file
+        repo_data['last_update'] = last_update
         repo_line[repo_name] = repo_data
 
-    print(repo_line)
+    #print(repo_line)
     parse_template()
 
 def output_srclist() :
@@ -95,10 +104,11 @@ def output_srclist() :
             else :              
                 reponame = ""
 
-            dt = datetime.strptime(attr["cdate"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=utc)
-            date_jst = dt.astimezone(jst)
+            #dt = datetime.strptime(attr["cdate"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=utc)
+            #date_jst = dt.astimezone(jst)
             #dt = dt.replace(tzinfo=pytz.UTC)
-            dt_str = date_jst.strftime("%y/%m/%d %H:%M")
+            #dt_str = date_jst.strftime("%y/%m/%d %H:%M")
+            dt_str = attr["cdate"].strftime("%y/%m/%d %H:%M")
             #total_line += int(attr["line"])
             #all_line += int(attr["line"])
             repo_data = repo_line[repo]
@@ -119,8 +129,10 @@ def output_repolist() :
     for reponame,repo_data in repo_line.items():
         num_file = repo_data['num_file']
         line = repo_data['line']
+        last_update = repo_data['last_update'] 
+        last_update_str = last_update.strftime("%y/%m/%d %H:%M")
         out.write(f'<tr><td>{reponame}</td><td align="right">{num_file}</td>'
-                  f'<td>{line}</td><td>---</td></tr>')
+                  f'<td align="right">{line}</td><td>{last_update_str}</td></tr>')
 
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
