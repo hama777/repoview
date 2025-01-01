@@ -9,8 +9,8 @@ from datetime import date,timedelta
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 24/12/30 v0.09 repo一覧に最終更新日時を追加
-version = "0.09"     
+# 25/01/01 v0.10 コメント修正
+version = "0.10"     
 
 out =  ""
 logf = ""
@@ -62,13 +62,12 @@ def main():
         file_data = {}
         total_line = 0 
         num_file = 0
-        last_update =  datetime(2000, 1, 1, 0, 0, 0)
+        last_update =  datetime(2000, 1, 1, 0, 0, 0)   # 最新更新日 初期値として 2000/01/01 を設定
         for file_path in files:
             line_count, last_commit_date, last_commit_message = get_file_details(username, repo_name, file_path, token)
-            #print(f"{file_path}: {line_count} lines, Last Commit: {last_commit_date}, Message: {last_commit_message}")
             attr = {}            
             dt = datetime.strptime(last_commit_date, "%Y-%m-%dT%H:%M:%SZ")
-            dt = dt + timedelta(hours=9)
+            dt = dt + timedelta(hours=9)    #  JST にするため 9時間加算
             attr['line'] = line_count
             attr['cdate'] = dt
             attr['message'] = last_commit_message
@@ -94,7 +93,6 @@ def output_srclist() :
     utc = pytz.utc
     jst = pytz.timezone("Asia/Tokyo")
     prev_repo = ""
-    #all_line = 0 
     for repo,file_data in repo_info.items() :
 
         for filen,attr in file_data.items() :
@@ -104,13 +102,7 @@ def output_srclist() :
             else :              
                 reponame = ""
 
-            #dt = datetime.strptime(attr["cdate"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=utc)
-            #date_jst = dt.astimezone(jst)
-            #dt = dt.replace(tzinfo=pytz.UTC)
-            #dt_str = date_jst.strftime("%y/%m/%d %H:%M")
             dt_str = attr["cdate"].strftime("%y/%m/%d %H:%M")
-            #total_line += int(attr["line"])
-            #all_line += int(attr["line"])
             repo_data = repo_line[repo]
             total_line = repo_data['line']
             num_file = repo_data['num_file']
