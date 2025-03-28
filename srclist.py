@@ -6,11 +6,12 @@ import os
 import pytz
 from datetime import datetime
 from datetime import date,timedelta
+from ftplib import FTP_TLS
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/01/01 v0.10 コメント修正
-version = "0.10"     
+# 25/03/28 v0.11 configでftpの情報を取得するようにした
+version = "0.11"     
 
 out =  ""
 logf = ""
@@ -206,6 +207,7 @@ def parse_template() :
 
 def read_config() : 
     global username,proxy,token,debug
+    global ftp_host,ftp_user,ftp_pass,ftp_url
     if not os.path.isfile(conffile) :
         debug = 1 
         return
@@ -214,9 +216,20 @@ def read_config() :
     username = conf.readline().strip()
     token = conf.readline().strip()
     proxy  = conf.readline().strip()
+    ftp_host = conf.readline().strip()
+    ftp_user = conf.readline().strip()
+    ftp_pass = conf.readline().strip()
+    ftp_url = conf.readline().strip()
     debug = int(conf.readline().strip())
+    print(ftp_url)
+
     conf.close()
 
+def ftp_upload() : 
+    if debug == 1 :
+        return 
+    with FTP_TLS(host=ftp_host, user=ftp_user, passwd=ftp_pass) as ftp:
+        ftp.storbinary('STOR {}'.format(ftp_url), open(resultfile, 'rb'))
 
 
 if __name__ == "__main__":
