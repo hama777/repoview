@@ -10,8 +10,8 @@ from ftplib import FTP_TLS
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/03/28 v0.11 configでftpの情報を取得するようにした
-version = "0.11"     
+# 25/03/31 v1.00 ftp機能追加
+version = "1.00"     
 
 out =  ""
 logf = ""
@@ -89,6 +89,7 @@ def main():
 
     #print(repo_line)
     parse_template()
+    ftp_upload()
 
 def output_srclist() :
     utc = pytz.utc
