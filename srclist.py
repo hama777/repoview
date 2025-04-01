@@ -10,8 +10,8 @@ from ftplib import FTP_TLS
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/03/31 v1.00 ftp機能追加
-version = "1.00"     
+# 25/04/01 v1.01 repoリストを先に表示
+version = "1.01"     
 
 out =  ""
 logf = ""
@@ -115,18 +115,26 @@ def output_srclist() :
                   f'<td class=all align="right">{total_line}</td>'
                   f'<td class=all>---</td><td class=all>---</td></tr>\n')
 
-    out.write(f'<tr><td class=all>全合計</td><td class=all align="right">{all_num_file}</td>'
-              f'<td class=all align="right">{all_line}</td>'
-              f'<td class=all>---</td><td class=all>---</td></tr>\n')
+    # out.write(f'<tr><td class=all>全合計</td><td class=all align="right">{all_num_file}</td>'
+    #           f'<td class=all align="right">{all_line}</td>'
+    #           f'<td class=all>---</td><td class=all>---</td></tr>\n')
 
 def output_repolist() : 
+    sum_line = 0 
+    sum_files = 0 
     for reponame,repo_data in repo_line.items():
         num_file = repo_data['num_file']
         line = repo_data['line']
+        sum_line += line
+        sum_files += 1
         last_update = repo_data['last_update'] 
         last_update_str = last_update.strftime("%y/%m/%d %H:%M")
         out.write(f'<tr><td>{reponame}</td><td align="right">{num_file}</td>'
                   f'<td align="right">{line}</td><td>{last_update_str}</td></tr>')
+
+    out.write(f'<tr><td class=all>合計</td><td class=all align="right">{sum_files}</td>'
+              f'<td class=all align="right">{sum_line}</td><td class=all>--</td></tr>')
+
 
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
