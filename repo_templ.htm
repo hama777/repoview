@@ -1,4 +1,4 @@
-<!-- 24/12/28 v0.08 repo一覧追加 -->
+<!-- 25/04/01 v1.01 repoリストを先に表示 -->
 <html>
     <head>
         <title>Source List</title>
@@ -7,20 +7,21 @@
         <link rel="stylesheet" href="repo.css">
     </head>
     <body>
-        <h1>Source List</h1>
         <span style="font-size:12px;">Ver : %version%</span>
         <span style="font-size:12px;">実行日時   : %today%</span>
-        <br><br>
-
-        <table>
-         <tr><th>リポジトリ</th><th>file名</th><th>行数</th><th>日付</th><th>コメント</th></tr>
-            %srclist% 
-        </table>
+        <br>
 
         <h1>Repo List</h1>
         <table>
             <tr><th>リポジトリ</th><th>file数</th><th>行数</th><th>最終日付</th></tr>
                %repolist% 
-           </table>
+        </table>
+        <br>
+        <h1>Source List</h1>
+        <table>
+         <tr><th>リポジトリ</th><th>file名</th><th>行数</th><th>日付</th><th>コメント</th></tr>
+            %srclist% 
+        </table>
+
        </body>
 </html>
