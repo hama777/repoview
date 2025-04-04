@@ -2,6 +2,11 @@ import requests
 import os
 from datetime import datetime, timedelta
 
+# 25/04/01 v1.01 repoリストを先に表示
+version = "0.01"     
+appdir = os.path.dirname(os.path.abspath(__file__))
+conffile = appdir + "/repoview.conf"
+
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
     headers = {"Authorization": f"token {token}"}
@@ -17,9 +22,29 @@ def get_commit_counts(username, repo_name, token, since, until):
     response.raise_for_status()
     return len(response.json())
 
+def read_config() : 
+    global username,proxy,token,debug
+    global ftp_host,ftp_user,ftp_pass,ftp_url
+    if not os.path.isfile(conffile) :
+        debug = 1 
+        return
+
+    conf = open(conffile,'r', encoding='utf-8')
+    username = conf.readline().strip()
+    token = conf.readline().strip()
+    proxy  = conf.readline().strip()
+    ftp_host = conf.readline().strip()
+    ftp_user = conf.readline().strip()
+    ftp_pass = conf.readline().strip()
+    ftp_url = conf.readline().strip()
+    debug = int(conf.readline().strip())
+    print(ftp_url)
+
+    conf.close()
+
+
 def main():
-    username = ""
-    token = ""
+    read_config()
 
     if not token:
         print("Error: GitHub token is not set in the environment variables.")
