@@ -7,11 +7,10 @@ import pytz
 from datetime import datetime
 from datetime import date,timedelta
 from ftplib import FTP_TLS
-
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/04/01 v1.01 repoリストを先に表示
-version = "1.01"     
+# 25/06/27 v1.02 repoの行数などをファイルに出力する
+version = "1.02"     
 
 out =  ""
 logf = ""
@@ -19,6 +18,7 @@ appdir = os.path.dirname(os.path.abspath(__file__))
 conffile = appdir + "/repoview.conf"
 resultfile = appdir + "/srclist.htm" 
 templatefile = appdir + "/repo_templ.htm"
+repodatafile =  appdir + "/repodata.txt"    #  日付ごと repo ごとのソース行数
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 #   全情報
@@ -29,27 +29,22 @@ repo_info = {}
 #   repoごとの 全行数、ファイル数、最終更新日 を保持する
 #     キー  repo名  値  repo_data  キー  line  num_file  last_update
 repo_line = {}
-
 all_line = 0      # 全行数
 all_num_file = 0  # 全ファイル数
-
 
 def main():
     global  all_line, all_num_file
     utc = pytz.utc
     jst = pytz.timezone("Asia/Tokyo")
-
     read_config()
 
     if not proxy == "noproxy" :
         os.environ['https_proxy'] = proxy
-
     if not token:
         print("Error: GitHub token is not set in the environment variables.")
         return
 
     repositories = get_repositories(username, token)
-    
     n = 0 
     all_line = 0 
     all_num_file = 0 
@@ -115,13 +110,10 @@ def output_srclist() :
                   f'<td class=all align="right">{total_line}</td>'
                   f'<td class=all>---</td><td class=all>---</td></tr>\n')
 
-    # out.write(f'<tr><td class=all>全合計</td><td class=all align="right">{all_num_file}</td>'
-    #           f'<td class=all align="right">{all_line}</td>'
-    #           f'<td class=all>---</td><td class=all>---</td></tr>\n')
-
 def output_repolist() : 
     sum_line = 0 
     sum_files = 0 
+    repof = open(repodatafile,"a")
     for reponame,repo_data in repo_line.items():
         num_file = repo_data['num_file']
         line = repo_data['line']
@@ -132,9 +124,10 @@ def output_repolist() :
         out.write(f'<tr><td>{reponame}</td><td align="right">{num_file}</td>'
                   f'<td align="right">{line}</td><td>{last_update_str}</td></tr>')
 
+        repof.write(f'{today_yymmdd}\t{reponame}\t{num_file}\t{line}\n')
     out.write(f'<tr><td class=all>合計</td><td class=all align="right">{sum_files}</td>'
               f'<td class=all align="right">{sum_line}</td><td class=all>--</td></tr>')
-
+    repof.close()
 
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
@@ -186,10 +179,12 @@ def get_file_details(username, repo_name, file_path, token):
     return line_count, last_commit_date, last_commit_message
 
 def output_current_date(s):
+    global today_yymmdd
     today_datetime = datetime.today()
     d = today_datetime.strftime("%m/%d %H:%M")
     s = s.replace("%today%",d)
     out.write(s)
+    today_yymmdd = today_datetime.strftime("%y/%m/%d")
 
 def parse_template() :
     global out 
@@ -239,7 +234,6 @@ def ftp_upload() :
         return 
     with FTP_TLS(host=ftp_host, user=ftp_user, passwd=ftp_pass) as ftp:
         ftp.storbinary('STOR {}'.format(ftp_url), open(resultfile, 'rb'))
-
 
 if __name__ == "__main__":
     main()
