@@ -1,16 +1,19 @@
 import requests
 import os
 from datetime import datetime, timedelta
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/04/01 v1.01 repoリストを先に表示
-version = "0.01"     
+# 25/07/04 v1.02 proxyに対応
+version = "0.02"
+
 appdir = os.path.dirname(os.path.abspath(__file__))
 conffile = appdir + "/repoview.conf"
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
     headers = {"Authorization": f"token {token}"}
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, verify=False)
     response.raise_for_status()
     return [repo['name'] for repo in response.json()]
 
@@ -18,7 +21,7 @@ def get_commit_counts(username, repo_name, token, since, until):
     url = f"https://api.github.com/repos/{username}/{repo_name}/commits"
     headers = {"Authorization": f"token {token}"}
     params = {"since": since, "until": until}
-    response = requests.get(url, headers=headers, params=params)
+    response = requests.get(url, headers=headers, params=params, verify=False)
     response.raise_for_status()
     return len(response.json())
 
@@ -46,12 +49,17 @@ def read_config() :
 def main():
     read_config()
 
+    if not proxy == "noproxy" :
+        os.environ['https_proxy'] = proxy
     if not token:
         print("Error: GitHub token is not set in the environment variables.")
         return
     
     repositories = get_repositories(username, token)
-    start_date = datetime.utcnow().date() - timedelta(days=29)
+    check_days = 29
+    if debug == 1 :
+        check_days = 5
+    start_date = datetime.utcnow().date() - timedelta(days=check_days)
     
     for days_since in range(30):
         date = start_date + timedelta(days=days_since)
@@ -59,6 +67,7 @@ def main():
         until = f"{date}T23:59:59Z"
         
         commit_data = []
+        
         for repo in repositories:
             commit_count = get_commit_counts(username, repo, token, since, until)
             if commit_count > 0:
