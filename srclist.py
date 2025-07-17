@@ -4,13 +4,14 @@
 import requests
 import os
 import pytz
+import datetime
 from datetime import datetime
 from datetime import date,timedelta
 from ftplib import FTP_TLS
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/06/27 v1.02 repoの行数などをファイルに出力する
-version = "1.02"     
+# 25/07/17 v1.03 repoの行数などをファイルに出力する
+version = "1.03"     
 
 out =  ""
 logf = ""
@@ -29,6 +30,11 @@ repo_info = {}
 #   repoごとの 全行数、ファイル数、最終更新日 を保持する
 #     キー  repo名  値  repo_data  キー  line  num_file  last_update
 repo_line = {}
+
+#   過去の情報   キー  日付   値   past_data(辞書)
+#       past_data   キー  repo名   値   ソース数、行数 のリスト
+all_past_data = {}
+
 all_line = 0      # 全行数
 all_num_file = 0  # 全ファイル数
 
@@ -44,6 +50,8 @@ def main():
         print("Error: GitHub token is not set in the environment variables.")
         return
 
+    read_repodata()
+
     repositories = get_repositories(username, token)
     n = 0 
     all_line = 0 
@@ -53,6 +61,7 @@ def main():
         if debug == 1 and n > 3 :     #  debug 
             break 
         print(f"\nRepository: {repo_name}")
+
         files = get_files_in_repository(username, repo_name, token)
         
         file_data = {}
@@ -85,6 +94,29 @@ def main():
     #print(repo_line)
     parse_template()
     ftp_upload()
+
+# repodatafile を読んで  all_past_data を作成する
+def read_repodata() :
+    global all_past_data
+    prev_dt = ""
+    past_data = {}
+    with open(repodatafile) as f:
+        for line in f:
+            line = line.rstrip()
+            data = line.split("\t")
+            dt = data[0]
+            if prev_dt == "" :
+                prev_dt = dt
+            if dt != prev_dt :
+                all_past_data[prev_dt] = past_data
+                #print(f'loop end {past_data}')
+                #print(all_past_data)
+                past_data = {}
+                prev_dt = dt
+            past_data[data[1]] = (data[2],data[3] )
+            #print(past_data)
+
+    all_past_data[prev_dt] = past_data
 
 def output_srclist() :
     utc = pytz.utc
@@ -225,7 +257,6 @@ def read_config() :
     ftp_pass = conf.readline().strip()
     ftp_url = conf.readline().strip()
     debug = int(conf.readline().strip())
-    print(ftp_url)
 
     conf.close()
 
