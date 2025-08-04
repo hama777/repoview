@@ -3,11 +3,13 @@ import os
 from datetime import datetime, timedelta
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/07/04 v1.02 proxyに対応
-version = "0.02"
+# 25/08/04 v1.03 utcnowのワーニング対処
+version = "0.03"
 
 appdir = os.path.dirname(os.path.abspath(__file__))
 conffile = appdir + "/repoview.conf"
+checkdate = appdir + "/checkdate.txt"
+
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 def get_repositories(username, token):
@@ -45,6 +47,12 @@ def read_config() :
 
     conf.close()
 
+def write_datetime() :
+    s = datetime.now().strftime("%Y/%m/%d %H:%M:%S") + "\n"
+    f = open(checkdate,"w",encoding='utf-8')
+    f.write(s)
+    f.close()
+    
 
 def main():
     read_config()
@@ -59,7 +67,7 @@ def main():
     check_days = 29
     if debug == 1 :
         check_days = 5
-    start_date = datetime.utcnow().date() - timedelta(days=check_days)
+    start_date = datetime.now().date() - timedelta(days=check_days)
     
     for days_since in range(30):
         date = start_date + timedelta(days=days_since)
@@ -75,6 +83,8 @@ def main():
         
         if commit_data:
             print(f"{date.strftime('%m/%d')} {' '.join(commit_data)}")
+
+    write_datetime()
 
 if __name__ == "__main__":
     main()
