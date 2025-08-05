@@ -1,10 +1,11 @@
 import requests
 import os
+from datetime import date
 from datetime import datetime, timedelta
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/08/04 v1.03 utcnowのワーニング対処
-version = "0.03"
+# 25/08/05 v1.04 get_period_info作成
+version = "0.04"
 
 appdir = os.path.dirname(os.path.abspath(__file__))
 conffile = appdir + "/repoview.conf"
@@ -43,7 +44,6 @@ def read_config() :
     ftp_pass = conf.readline().strip()
     ftp_url = conf.readline().strip()
     debug = int(conf.readline().strip())
-    print(ftp_url)
 
     conf.close()
 
@@ -52,7 +52,23 @@ def write_datetime() :
     f = open(checkdate,"w",encoding='utf-8')
     f.write(s)
     f.close()
-    
+
+#   指定した期間のコミット情報を取得する
+#   結果は辞書  commit_info  キー  repo名  値  コミット数
+def get_period_info(start_date,end_date) :
+    global commit_info
+
+    commit_info = {}
+    repositories = get_repositories(username, token)
+
+    since = f"{start_date}T00:00:00Z"
+    until = f"{end_date}T23:59:59Z"
+    for repo in repositories:
+        commit_count = get_commit_counts(username, repo, token, since, until)
+        if commit_count > 0:
+            commit_info[repo] = commit_count
+
+    print(commit_info)
 
 def main():
     read_config()
@@ -63,6 +79,10 @@ def main():
         print("Error: GitHub token is not set in the environment variables.")
         return
     
+    start_date =  date(2025, 7, 1)
+    end_date =  date(2025, 8, 5)
+    get_period_info(start_date,end_date)
+
     repositories = get_repositories(username, token)
     check_days = 29
     if debug == 1 :
@@ -70,9 +90,9 @@ def main():
     start_date = datetime.now().date() - timedelta(days=check_days)
     
     for days_since in range(30):
-        date = start_date + timedelta(days=days_since)
-        since = f"{date}T00:00:00Z"
-        until = f"{date}T23:59:59Z"
+        datek = start_date + timedelta(days=days_since)
+        since = f"{datek}T00:00:00Z"
+        until = f"{datek}T23:59:59Z"
         
         commit_data = []
         
@@ -82,7 +102,7 @@ def main():
                 commit_data.append(f"リポジトリ名 {repo} コミット数 {commit_count}")
         
         if commit_data:
-            print(f"{date.strftime('%m/%d')} {' '.join(commit_data)}")
+            print(f"{datek.strftime('%m/%d')} {' '.join(commit_data)}")
 
     write_datetime()
 
