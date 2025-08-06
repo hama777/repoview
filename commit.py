@@ -1,11 +1,12 @@
 import requests
 import os
+import calendar
 from datetime import date
 from datetime import datetime, timedelta
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/08/05 v1.04 get_period_info作成
-version = "0.04"
+# 25/08/06 v1.05 月ごとのコミット数集計
+version = "0.05"
 
 appdir = os.path.dirname(os.path.abspath(__file__))
 conffile = appdir + "/repoview.conf"
@@ -79,30 +80,21 @@ def main():
         print("Error: GitHub token is not set in the environment variables.")
         return
     
-    start_date =  date(2025, 7, 1)
-    end_date =  date(2025, 8, 5)
-    get_period_info(start_date,end_date)
+    today_date = date.today()   
+    today_mm = today_date.month
 
-    repositories = get_repositories(username, token)
-    check_days = 29
-    if debug == 1 :
-        check_days = 5
-    start_date = datetime.now().date() - timedelta(days=check_days)
-    
-    for days_since in range(30):
-        datek = start_date + timedelta(days=days_since)
-        since = f"{datek}T00:00:00Z"
-        until = f"{datek}T23:59:59Z"
-        
-        commit_data = []
-        
-        for repo in repositories:
-            commit_count = get_commit_counts(username, repo, token, since, until)
-            if commit_count > 0:
-                commit_data.append(f"リポジトリ名 {repo} コミット数 {commit_count}")
-        
-        if commit_data:
-            print(f"{datek.strftime('%m/%d')} {' '.join(commit_data)}")
+    #start_date =  date(2025, 7, 1)
+    #end_date =  date(2025, 8, 5)
+    #get_period_info(start_date,end_date)
+
+    yy = 2025
+    for mm in range(1,13) :
+        if mm > today_mm :
+            break
+        start_date =  date(2025, mm, 1)
+        last_day = calendar.monthrange(yy, mm)[1]
+        final_date = date(yy, mm, last_day)
+        get_period_info(start_date,final_date)
 
     write_datetime()
 
