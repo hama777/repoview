@@ -5,8 +5,8 @@ from datetime import date
 from datetime import datetime, timedelta
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/10/07 v0.06 月ごとのコミット数を表形式にした
-version = "0.06"
+# 25/10/08 v0.07 対象リポジトリ数の項目追加
+version = "0.07"
 
 appdir = os.path.dirname(os.path.abspath(__file__))
 conffile = appdir + "/repoview.conf"
@@ -41,8 +41,10 @@ def monthly_commit_count() :
         start_date =  date(2025, mm, 1)
         last_day = calendar.monthrange(yy, mm)[1]   # 月の最終日
         final_date = date(yy, mm, last_day)
-        n = get_period_commit_count(start_date,final_date)
-        out.write(f'<tr><td>{mm}</td><td>{n}</td><td></td></tr>\n')
+        dic_info = get_period_commit_info(start_date,final_date)
+        count = dic_info['count']
+        repo = dic_info['repo']
+        out.write(f'<tr><td>{mm}</td><td>{count}</td><td>{repo}</td></tr>\n')
 
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
@@ -82,18 +84,23 @@ def write_datetime() :
     f.write(s)
     f.close()
 
-#   指定した期間のコミット数を取得する
-#   結果は辞書  commit_info  キー  repo名  値  コミット数
-def get_period_commit_count(start_date,end_date) :
+#   指定した期間のコミット情報を返す
+#   結果は辞書  キー  count 値  コミット数   キー  repo  値  対象repo数
+def get_period_commit_info(start_date,end_date) :
     count = 0 
+    count_repo = 0 
     repositories = get_repositories(username, token)
 
     since = f"{start_date}T00:00:00Z"
     until = f"{end_date}T23:59:59Z"
     for repo in repositories:
         count += get_commit_counts(username, repo, token, since, until)
-
-    return count
+        if count > 0 :
+            count_repo += 1
+    c_info = {}
+    c_info['count'] = count
+    c_info['repo'] = count_repo
+    return c_info
 
 #   指定した期間のコミット情報を取得する
 #   結果は辞書  commit_info  キー  repo名  値  コミット数
