@@ -5,8 +5,8 @@ from datetime import date
 from datetime import datetime, timedelta
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/10/08 v0.07 対象リポジトリ数の項目追加
-version = "0.07"
+# 25/10/10 v0.08 対象リポジトリ数の項目修正
+version = "0.08"
 
 appdir = os.path.dirname(os.path.abspath(__file__))
 conffile = appdir + "/repoview.conf"
@@ -44,7 +44,7 @@ def monthly_commit_count() :
         dic_info = get_period_commit_info(start_date,final_date)
         count = dic_info['count']
         repo = dic_info['repo']
-        out.write(f'<tr><td>{mm}</td><td>{count}</td><td>{repo}</td></tr>\n')
+        out.write(f'<tr><td align="right">{mm}</td><td align="right">{count}</td><td align="right">{repo}</td></tr>\n')
 
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
@@ -61,22 +61,6 @@ def get_commit_counts(username, repo_name, token, since, until):
     response.raise_for_status()
     return len(response.json())
 
-def parse_template() :
-    global out 
-    f = open(templatefile , 'r', encoding='utf-8')
-    out = open(resultfile,'w' ,  encoding='utf-8')
-    for line in f :
-        if "%monthly_commit_count%" in line :
-            monthly_commit_count()
-            continue
-        if "%version%" in line :
-            s = line.replace("%version%",version)
-            out.write(s)
-            continue
-        out.write(line)
-
-    f.close()
-    out.close()
 
 def write_datetime() :
     s = datetime.now().strftime("%Y/%m/%d %H:%M:%S") + "\n"
@@ -94,8 +78,9 @@ def get_period_commit_info(start_date,end_date) :
     since = f"{start_date}T00:00:00Z"
     until = f"{end_date}T23:59:59Z"
     for repo in repositories:
-        count += get_commit_counts(username, repo, token, since, until)
-        if count > 0 :
+        n = get_commit_counts(username, repo, token, since, until)
+        count += n
+        if n > 0 :
             count_repo += 1
     c_info = {}
     c_info['count'] = count
@@ -138,6 +123,23 @@ def read_config() :
     debug = int(conf.readline().strip())
 
     conf.close()
+
+def parse_template() :
+    global out 
+    f = open(templatefile , 'r', encoding='utf-8')
+    out = open(resultfile,'w' ,  encoding='utf-8')
+    for line in f :
+        if "%monthly_commit_count%" in line :
+            monthly_commit_count()
+            continue
+        if "%version%" in line :
+            s = line.replace("%version%",version)
+            out.write(s)
+            continue
+        out.write(line)
+
+    f.close()
+    out.close()
 
 if __name__ == "__main__":
     main_proc()
