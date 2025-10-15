@@ -5,14 +5,15 @@ from datetime import date
 from datetime import datetime, timedelta
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/10/10 v0.08 対象リポジトリ数の項目修正
-version = "0.08"
+# 25/10/15 v0.09 キャッシュファイルを作成
+version = "0.09"
 
 appdir = os.path.dirname(os.path.abspath(__file__))
 conffile = appdir + "/repoview.conf"
 checkdate = appdir + "/checkdate.txt"
 templatefile = appdir + "/cmt_templ.htm"
 resultfile = appdir + "/commit.htm"
+chachefile = appdir + "/cache.txt"
 
 commit_info = {}  # コミット情報   辞書  キー  repo名  値  コミット数
 
@@ -35,6 +36,7 @@ def monthly_commit_count() :
     yy = 2025
     today_date = date.today()   
     today_mm = today_date.month
+    cf = open(chachefile,'w')
     for mm in range(1,13) :
         if mm > today_mm :
             break
@@ -44,7 +46,10 @@ def monthly_commit_count() :
         dic_info = get_period_commit_info(start_date,final_date)
         count = dic_info['count']
         repo = dic_info['repo']
-        out.write(f'<tr><td align="right">{mm}</td><td align="right">{count}</td><td align="right">{repo}</td></tr>\n')
+        out.write(f'<tr><td align="right">{yy}/{mm:02d}</td><td align="right">{count}</td><td align="right">{repo}</td></tr>\n')
+        cf.write(f'{yy}/{mm:02d}\t{count}\t{repo}\n')
+    
+    cf.close()
 
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
