@@ -1,12 +1,14 @@
 import requests
 import os
 import calendar
+import datetime
 from datetime import date
-from datetime import datetime, timedelta
+#from datetime import date
+#from datetime import datetime, timedelta
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/10/15 v0.09 キャッシュファイルを作成
-version = "0.09"
+# 25/10/16 v0.10 以前のデータはキャッシュを利用する
+version = "0.10"
 
 appdir = os.path.dirname(os.path.abspath(__file__))
 conffile = appdir + "/repoview.conf"
@@ -20,17 +22,18 @@ commit_info = {}  # コミット情報   辞書  キー  repo名  値  コミッ
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 def main_proc():
+    date_settings()
     read_config()
+    read_chache()
 
     if not proxy == "noproxy" :
         os.environ['https_proxy'] = proxy
     if not token:
         print("Error: GitHub token is not set in the environment variables.")
         return
-    
 
     parse_template()
-    write_datetime()
+#    write_datetime()
 
 def monthly_commit_count() :
     yy = 2025
@@ -40,16 +43,39 @@ def monthly_commit_count() :
     for mm in range(1,13) :
         if mm > today_mm :
             break
-        start_date =  date(2025, mm, 1)
-        last_day = calendar.monthrange(yy, mm)[1]   # 月の最終日
-        final_date = date(yy, mm, last_day)
-        dic_info = get_period_commit_info(start_date,final_date)
-        count = dic_info['count']
-        repo = dic_info['repo']
+        key = (yy - 2000) * 100 + mm    #  yy は西暦4桁なので2桁になおす
+        if key in monthly_commit :
+            data = monthly_commit[key]
+            count = data[0]
+            repo = data[1]
+            print("from cache")
+        else :
+            start_date =  date(yy, mm, 1)
+            last_day = calendar.monthrange(yy, mm)[1]   # 月の最終日
+            final_date = date(yy, mm, last_day)
+            dic_info = get_period_commit_info(start_date,final_date)
+            count = dic_info['count']
+            repo = dic_info['repo']
         out.write(f'<tr><td align="right">{yy}/{mm:02d}</td><td align="right">{count}</td><td align="right">{repo}</td></tr>\n')
         cf.write(f'{yy}/{mm:02d}\t{count}\t{repo}\n')
     
     cf.close()
+
+def read_chache() :
+    global monthly_commit
+    today_key = (today_yy - 2000) * 100 + today_mm
+    monthly_commit = {}
+    with open(chachefile) as f:
+        for line in f:
+            line = line.rstrip()    # 改行を削除
+            data = line.split("\t")
+            yymm = data[0].split("/")
+            yy = int(yymm[0]) - 2000
+            mm = int(yymm[1])
+            key = yy * 100 + mm
+            if key == today_key :    # 今月分は除く
+                break
+            monthly_commit[key] = (data[1],data[2])
 
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
@@ -66,7 +92,7 @@ def get_commit_counts(username, repo_name, token, since, until):
     response.raise_for_status()
     return len(response.json())
 
-
+#   未使用
 def write_datetime() :
     s = datetime.now().strftime("%Y/%m/%d %H:%M:%S") + "\n"
     f = open(checkdate,"w",encoding='utf-8')
@@ -109,6 +135,15 @@ def get_period_info(start_date,end_date) :
 
     print(commit_info)
 
+def date_settings():
+    global  today_date,today_mm,today_dd,today_yy,today_datetime,today_hh
+
+    today_datetime = datetime.datetime.today()   # datetime 型
+    today_date = datetime.date.today()           # date 型
+    today_mm = today_date.month
+    today_dd = today_date.day
+    today_yy = today_date.year         #  4桁
+    today_hh = today_datetime.hour     #  現在の 時
 
 def read_config() : 
     global username,proxy,token,debug
