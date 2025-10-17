@@ -2,6 +2,7 @@ import requests
 import os
 import calendar
 import datetime
+import pandas as pd
 from datetime import date
 #from datetime import date
 #from datetime import datetime, timedelta
@@ -24,22 +25,26 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 def main_proc():
     date_settings()
     read_config()
-    read_chache()
-
     if not proxy == "noproxy" :
         os.environ['https_proxy'] = proxy
     if not token:
         print("Error: GitHub token is not set in the environment variables.")
         return
+    read_chache()
+    create_df_monthly_commit()
 
     parse_template()
+    write_chache()
 #    write_datetime()
 
-def monthly_commit_count() :
-    yy = 2025
+#   月別コミット情報 df_monthly_commit を作成する
+def create_df_monthly_commit() :
+    global df_monthly_commit    # 月ごとのコミット数 df  カラム yymm 年月  count コミット数  repo リポ数
+
+    yy = 2025    #  暫定
     today_date = date.today()   
     today_mm = today_date.month
-    cf = open(chachefile,'w')
+    rows = []
     for mm in range(1,13) :
         if mm > today_mm :
             break
@@ -48,7 +53,6 @@ def monthly_commit_count() :
             data = monthly_commit[key]
             count = data[0]
             repo = data[1]
-            print("from cache")
         else :
             start_date =  date(yy, mm, 1)
             last_day = calendar.monthrange(yy, mm)[1]   # 月の最終日
@@ -56,27 +60,52 @@ def monthly_commit_count() :
             dic_info = get_period_commit_info(start_date,final_date)
             count = dic_info['count']
             repo = dic_info['repo']
-        out.write(f'<tr><td align="right">{yy}/{mm:02d}</td><td align="right">{count}</td><td align="right">{repo}</td></tr>\n')
-        cf.write(f'{yy}/{mm:02d}\t{count}\t{repo}\n')
-    
-    cf.close()
+        rows.append([key, count , repo])
+
+    df_monthly_commit = pd.DataFrame(rows, columns=["yymm", "count", "repo"])
+
+#   月別コミット数グラフ
+def commit_graph() :
+    for _,row in df_monthly_commit.iterrows() :
+        yymm = row["yymm"]
+        count = row["count"]
+        out.write(f"['{yymm}',{count}],") 
+
+#   月別コミット数、リポジトリ情報
+def monthly_commit_count() :
+    for _,row in df_monthly_commit.iterrows() :
+        yymm = row["yymm"]
+        count = row["count"]
+        repo = row["repo"]
+        out.write(f'<tr><td align="right">{yymm}</td><td align="right">{count}</td><td align="right">{repo}</td></tr>\n')
 
 def read_chache() :
     global monthly_commit
-    today_key = (today_yy - 2000) * 100 + today_mm
+
     monthly_commit = {}
+    if not os.path.isfile(chachefile) :   # キャッシュファイルがなければ何もしない
+        return
+    today_key = (today_yy - 2000) * 100 + today_mm
     with open(chachefile) as f:
         for line in f:
             line = line.rstrip()    # 改行を削除
             data = line.split("\t")
-            yymm = data[0].split("/")
-            yy = int(yymm[0]) - 2000
-            mm = int(yymm[1])
-            key = yy * 100 + mm
+            key = int(data[0])
             if key == today_key :    # 今月分は除く
                 break
             monthly_commit[key] = (data[1],data[2])
 
+def write_chache() :
+    cf = open(chachefile,'w')
+    for _,row in df_monthly_commit.iterrows() :
+        yymm = row["yymm"]
+        count = row["count"]
+        repo = row["repo"]
+        cf.write(f'{yymm}\t{count}\t{repo}\n')
+    
+    cf.close()
+
+#   リポジトリ情報取得
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
     headers = {"Authorization": f"token {token}"}
@@ -120,6 +149,7 @@ def get_period_commit_info(start_date,end_date) :
 
 #   指定した期間のコミット情報を取得する
 #   結果は辞書  commit_info  キー  repo名  値  コミット数
+#   未使用
 def get_period_info(start_date,end_date) :
     global commit_info
 
@@ -132,8 +162,6 @@ def get_period_info(start_date,end_date) :
         commit_count = get_commit_counts(username, repo, token, since, until)
         if commit_count > 0:
             commit_info[repo] = commit_count
-
-    print(commit_info)
 
 def date_settings():
     global  today_date,today_mm,today_dd,today_yy,today_datetime,today_hh
@@ -161,7 +189,6 @@ def read_config() :
     ftp_pass = conf.readline().strip()
     ftp_url = conf.readline().strip()
     debug = int(conf.readline().strip())
-
     conf.close()
 
 def parse_template() :
@@ -169,6 +196,9 @@ def parse_template() :
     f = open(templatefile , 'r', encoding='utf-8')
     out = open(resultfile,'w' ,  encoding='utf-8')
     for line in f :
+        if "%commit_graph%" in line :
+            commit_graph()
+            continue
         if "%monthly_commit_count%" in line :
             monthly_commit_count()
             continue
