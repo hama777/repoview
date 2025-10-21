@@ -1,4 +1,4 @@
-/* 24/12/20 結果をhtmlに出力する */
+/* 25/10/21 h2など修正 */
 table, td, th { 
     font-family: "Meiryo UI" ; 
     font-size: 14px; 
@@ -24,8 +24,8 @@ h1{
 h2{
     margin: 0 0 0.5em;
     padding: 3px;
-    border-top: 5px double #277ff1;
-    border-bottom: 5px double #277ff1;
+    border-top: 3px double #07521a;
+    border-bottom: 3px double #07521a;
     font-size: 16px ;
     font-weight: bold;
 }
