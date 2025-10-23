@@ -10,8 +10,8 @@ from datetime import date,timedelta
 from ftplib import FTP_TLS
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/07/17 v1.03 repoの行数などをファイルに出力する
-version = "1.03"     
+# 25/10/23 v1.04 日付ごとの総行数グラフ 開発中
+version = "1.04"     
 
 out =  ""
 logf = ""
@@ -37,6 +37,7 @@ all_past_data = {}
 
 all_line = 0      # 全行数
 all_num_file = 0  # 全ファイル数
+total_line = {}    #  日付ごとの総行数   キー  日付   値  ソース行総行数
 
 def main():
     global  all_line, all_num_file
@@ -91,11 +92,11 @@ def main():
         repo_data['last_update'] = last_update
         repo_line[repo_name] = repo_data
 
-    #print(repo_line)
     parse_template()
     ftp_upload()
 
 # repodatafile を読んで  all_past_data を作成する
+#    TODO:  all_past_data は未使用
 def read_repodata() :
     global all_past_data
     prev_dt = ""
@@ -109,14 +110,24 @@ def read_repodata() :
                 prev_dt = dt
             if dt != prev_dt :
                 all_past_data[prev_dt] = past_data
-                #print(f'loop end {past_data}')
-                #print(all_past_data)
                 past_data = {}
                 prev_dt = dt
             past_data[data[1]] = (data[2],data[3] )
-            #print(past_data)
 
     all_past_data[prev_dt] = past_data
+
+    total_line_by_date()  #  一時的
+
+#   日毎の総行数を求める
+def total_line_by_date() :
+    global total_line
+    for k,repo_dic in all_past_data.items() :
+        line_count = 0 
+        for repo, repo_data in repo_dic.items() :
+            line_count += int(repo_data[1])
+        total_line[k] = line_count
+
+    print(total_line)
 
 def output_srclist() :
     utc = pytz.utc
