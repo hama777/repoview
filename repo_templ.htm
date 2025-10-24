@@ -1,4 +1,4 @@
-<!-- 25/10/21 タイトル表示 -->
+<!-- 25/10/24 v1.05 日付ごとの総行数グラフ追加 -->
 <html>
     <head>
         <title>Source List</title>
@@ -6,6 +6,32 @@
         <meta http-equiv="Content-Style-Type" content="text/css">
         <link rel="stylesheet" href="repo.css">
     </head>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+        google.load("visualization", "1", {packages:["corechart"]});
+        google.setOnLoadCallback(
+            function() {
+                var data = google.visualization.arrayToDataTable([
+                    ['', '時間'],
+                    %line_count_graph%
+                ]);
+
+                var options = {
+                    title: '総行数推移',
+                    colors: ['#32a89d'],
+                    hAxis: {title: '日付'},
+                    chartArea: { backgroundColor: '#f5f3e4', left:50, right:30 },
+                    backgroundColor: '#cfe6e3',
+                    legend: { position: 'none' }
+                };
+
+                var chart = new google.visualization.LineChart(document.getElementById('line_count_graph'));
+                chart.draw(data, options);
+
+            }
+        );
+    </script>
+
     <body>
         <h1>Repository情報</h1>
         <span style="font-size:12px;">Ver : %version%</span>
@@ -23,6 +49,8 @@
          <tr><th>リポジトリ</th><th>file名</th><th>行数</th><th>日付</th><th>コメント</th></tr>
             %srclist% 
         </table>
+        <h2>行数グラフ</h2>
+        <div id="line_count_graph" style="width:900px; height:400px;  margin-top:20px ; margin-left:  50px; "></div>
 
        </body>
 </html>
