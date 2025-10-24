@@ -10,8 +10,8 @@ from datetime import date,timedelta
 from ftplib import FTP_TLS
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/10/23 v1.04 日付ごとの総行数グラフ 開発中
-version = "1.04"     
+# 25/10/24 v1.05 日付ごとの総行数グラフ追加
+version = "1.05"     
 
 out =  ""
 logf = ""
@@ -92,6 +92,7 @@ def main():
         repo_data['last_update'] = last_update
         repo_line[repo_name] = repo_data
 
+    carete_line_count_info()
     parse_template()
     ftp_upload()
 
@@ -116,10 +117,9 @@ def read_repodata() :
 
     all_past_data[prev_dt] = past_data
 
-    total_line_by_date()  #  一時的
-
 #   日毎の総行数を求める
-def total_line_by_date() :
+#     TODO:  当日の分は含まれていない
+def carete_line_count_info() :
     global total_line
     for k,repo_dic in all_past_data.items() :
         line_count = 0 
@@ -127,7 +127,9 @@ def total_line_by_date() :
             line_count += int(repo_data[1])
         total_line[k] = line_count
 
-    print(total_line)
+def line_count_graph() :
+    for k,count in total_line.items() :
+        out.write(f"['{k}',{count}],")
 
 def output_srclist() :
     utc = pytz.utc
@@ -239,6 +241,9 @@ def parse_template() :
             continue
         if "%repolist%" in line :
             output_repolist()
+            continue
+        if "%line_count_graph%" in line :
+            line_count_graph()
             continue
         if "%version%" in line :
             s = line.replace("%version%",version)
