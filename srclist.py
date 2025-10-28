@@ -10,8 +10,8 @@ from datetime import date,timedelta
 from ftplib import FTP_TLS
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/10/24 v1.05 日付ごとの総行数グラフ追加
-version = "1.05"     
+# 25/10/27 v1.06 ソースの行数等の情報をファイルに出力する
+version = "1.06"     
 
 out =  ""
 logf = ""
@@ -20,6 +20,7 @@ conffile = appdir + "/repoview.conf"
 resultfile = appdir + "/srclist.htm" 
 templatefile = appdir + "/repo_templ.htm"
 repodatafile =  appdir + "/repodata.txt"    #  日付ごと repo ごとのソース行数
+srcdatafile = appdir + "/srcdata.txt"       #  ソースの行数等のテータを保存
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 #   全情報
@@ -131,10 +132,12 @@ def line_count_graph() :
     for k,count in total_line.items() :
         out.write(f"['{k}',{count}],")
 
+# TODO:  将来的には srcdata.txt に出力するのみにし、表示は別機能でおこなう
 def output_srclist() :
     utc = pytz.utc
     jst = pytz.timezone("Asia/Tokyo")
     prev_repo = ""
+    fp = open(srcdatafile,"w")
     for repo,file_data in repo_info.items() :
 
         for filen,attr in file_data.items() :
@@ -150,10 +153,13 @@ def output_srclist() :
             num_file = repo_data['num_file']
             out.write(f'<tr><td>{reponame}</td><td>{filen}</td><td align="right">{attr["line"]}</td>'
                       f'<td>{dt_str}</td><td>{attr["message"]}</td></tr>\n')
+            fp.write(f'{repo}\t{filen}\t{attr["line"]}\t{dt_str}\t{attr["message"]}\n')
+            
 
         out.write(f'<tr><td class=all>合計</td><td class=all  align="right">{num_file}</td>'
                   f'<td class=all align="right">{total_line}</td>'
                   f'<td class=all>---</td><td class=all>---</td></tr>\n')
+    fp.close()
 
 def output_repolist() : 
     sum_line = 0 
