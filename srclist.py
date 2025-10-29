@@ -10,8 +10,8 @@ from datetime import date,timedelta
 from ftplib import FTP_TLS
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/10/27 v1.06 ソースの行数等の情報をファイルに出力する
-version = "1.06"     
+# 25/10/29 v1.07 display_srclist作成
+version = "1.07"     
 
 out =  ""
 logf = ""
@@ -132,6 +132,21 @@ def line_count_graph() :
     for k,count in total_line.items() :
         out.write(f"['{k}',{count}],")
 
+
+def display_srclist() :
+    prev_repo = ""
+    with open(srcdatafile) as f:
+        for line in f:
+            line = line.rstrip()
+            (repo,filen,linecnt,mod_date,message) = line.split("\t")
+            if repo != prev_repo :   #  同じrepoの時は最初の行のみ repo名を表示
+                prev_repo = repo
+                reponame = repo
+            else :              
+                reponame = ""
+            out.write(f'<tr><td>{reponame}</td><td>{filen}</td><td align="right">{linecnt}</td>'
+                      f'<td>{mod_date}</td><td>{message}</td></tr>\n')
+
 # TODO:  将来的には srcdata.txt に出力するのみにし、表示は別機能でおこなう
 def output_srclist() :
     utc = pytz.utc
@@ -244,6 +259,7 @@ def parse_template() :
     for line in f :
         if "%srclist%" in line :
             output_srclist()
+            #display_srclist()
             continue
         if "%repolist%" in line :
             output_repolist()
