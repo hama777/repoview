@@ -10,8 +10,8 @@ from datetime import date,timedelta
 from ftplib import FTP_TLS
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/10/30 v0.00 新規
-version = "0.00"     
+# 25/11/07 v0.01 リポジトリ、ソース情報表示機能
+version = "0.01"     
 
 out =  ""
 logf = ""
@@ -19,7 +19,8 @@ appdir = os.path.dirname(os.path.abspath(__file__))
 conffile = appdir + "/repoview.conf"
 resultfile = appdir + "/srclist.htm" 
 templatefile = appdir + "/repo_templ.htm"
-repodatafile =  appdir + "/repodata.txt"    #  日付ごと repo ごとのソース行数
+dailyfile =  appdir + "/daily.txt"    #  日付ごと repo ごとのソース行数
+repodatafile =  appdir + "/repodata.txt"   #  repoの情報を保存
 srcdatafile = appdir + "/srcdata.txt"       #  ソースの行数等のテータを保存
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -58,6 +59,12 @@ def main():
     n = 0 
     all_line = 0 
     all_num_file = 0 
+
+    #carete_line_count_info()
+    parse_template()
+    ftp_upload()
+    return
+
     for repo_name in repositories:
         n += 1
         if debug == 1 and n > 3 :     #  debug 
@@ -93,17 +100,26 @@ def main():
         repo_data['last_update'] = last_update
         repo_line[repo_name] = repo_data
 
-    carete_line_count_info()
-    parse_template()
-    ftp_upload()
+
+def read_repodata() :
+    global repo_line
+    with open(repodatafile) as f:
+        for line in f:
+            line = line.rstrip()
+            data = line.split("\t")
+            repo_data = {}
+            repo_data['num_file'] = int(data[1])
+            repo_data['line'] = int(data[2])
+            repo_data['last_update'] = data[3]
+            repo_line[data[0]] = repo_data
 
 # repodatafile を読んで  all_past_data を作成する
 #    TODO:  all_past_data は未使用
-def read_repodata() :
+def read_dailydata() :
     global all_past_data
     prev_dt = ""
     past_data = {}
-    with open(repodatafile) as f:
+    with open(dailyfile) as f:
         for line in f:
             line = line.rstrip()
             data = line.split("\t")
@@ -117,6 +133,7 @@ def read_repodata() :
             past_data[data[1]] = (data[2],data[3] )
 
     all_past_data[prev_dt] = past_data
+    print(all_past_data)
 
 #   日毎の総行数を求める
 #     TODO:  当日の分は含まれていない
@@ -135,17 +152,31 @@ def line_count_graph() :
 
 def display_srclist() :
     prev_repo = ""
+    total_line  = 0
+    num_file = 0 
     with open(srcdatafile) as f:
         for line in f:
             line = line.rstrip()
             (repo,filen,linecnt,mod_date,message) = line.split("\t")
             if repo != prev_repo :   #  同じrepoの時は最初の行のみ repo名を表示
+                if prev_repo != "" :
+                    out.write(f'<tr><td class=all>合計</td><td class=all>{num_file}</td><td class=all align="right">{total_line}</td>'
+                              f'<td class=all></td><td class=all></td></tr>\n')
+                total_line  = 0
+                num_file = 0 
                 prev_repo = repo
                 reponame = repo
             else :              
                 reponame = ""
+            total_line += int(linecnt)
+            num_file += 1
+
             out.write(f'<tr><td>{reponame}</td><td>{filen}</td><td align="right">{linecnt}</td>'
                       f'<td>{mod_date}</td><td>{message}</td></tr>\n')
+
+    out.write(f'<tr><td class=all>合計</td><td class=all>{num_file}</td><td class=all align="right">{total_line}</td>'
+              f'<td class=all></td><td class=all></td></tr>\n')
+
 
 # TODO:  将来的には srcdata.txt に出力するのみにし、表示は別機能でおこなう
 def output_srclist() :
@@ -179,21 +210,18 @@ def output_srclist() :
 def output_repolist() : 
     sum_line = 0 
     sum_files = 0 
-    repof = open(repodatafile,"a")
     for reponame,repo_data in repo_line.items():
         num_file = repo_data['num_file']
         line = repo_data['line']
         sum_line += line
-        sum_files += 1
-        last_update = repo_data['last_update'] 
-        last_update_str = last_update.strftime("%y/%m/%d %H:%M")
+        sum_files += num_file
+        last_update_str = repo_data['last_update'] 
+        #last_update_str = last_update.strftime("%y/%m/%d %H:%M")
         out.write(f'<tr><td>{reponame}</td><td align="right">{num_file}</td>'
                   f'<td align="right">{line}</td><td>{last_update_str}</td></tr>')
 
-        repof.write(f'{today_yymmdd}\t{reponame}\t{num_file}\t{line}\n')
     out.write(f'<tr><td class=all>合計</td><td class=all align="right">{sum_files}</td>'
               f'<td class=all align="right">{sum_line}</td><td class=all>--</td></tr>')
-    repof.close()
 
 def get_repositories(username, token):
     url = f"https://api.github.com/users/{username}/repos"
@@ -258,8 +286,8 @@ def parse_template() :
     out = open(resultfile,'w' ,  encoding='utf-8')
     for line in f :
         if "%srclist%" in line :
-            output_srclist()
-            #display_srclist()
+            #output_srclist()
+            display_srclist()
             continue
         if "%repolist%" in line :
             output_repolist()
