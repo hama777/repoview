@@ -10,8 +10,8 @@ from datetime import date,timedelta
 from ftplib import FTP_TLS
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/11/07 v0.01 リポジトリ、ソース情報表示機能
-version = "0.01"     
+# 25/11/10 v1.00 総行数グラフ表示
+version = "1.00"     
 
 out =  ""
 logf = ""
@@ -37,12 +37,9 @@ repo_line = {}
 #       past_data   キー  repo名   値   ソース数、行数 のリスト
 all_past_data = {}
 
-all_line = 0      # 全行数
-all_num_file = 0  # 全ファイル数
-total_line = {}    #  日付ごとの総行数   キー  日付   値  ソース行総行数
+total_line = {}    #  日付ごとの総行数   キー  日付(yy/mm/dd 文字列)   値  ソース行総行数
 
 def main():
-    global  all_line, all_num_file
     utc = pytz.utc
     jst = pytz.timezone("Asia/Tokyo")
     read_config()
@@ -54,52 +51,10 @@ def main():
         return
 
     read_repodata()
+    read_dailydata()
 
-    repositories = get_repositories(username, token)
-    n = 0 
-    all_line = 0 
-    all_num_file = 0 
-
-    #carete_line_count_info()
     parse_template()
     ftp_upload()
-    return
-
-    for repo_name in repositories:
-        n += 1
-        if debug == 1 and n > 3 :     #  debug 
-            break 
-        print(f"\nRepository: {repo_name}")
-
-        files = get_files_in_repository(username, repo_name, token)
-        
-        file_data = {}
-        total_line = 0 
-        num_file = 0
-        last_update =  datetime(2000, 1, 1, 0, 0, 0)   # 最新更新日 初期値として 2000/01/01 を設定
-        for file_path in files:
-            line_count, last_commit_date, last_commit_message = get_file_details(username, repo_name, file_path, token)
-            attr = {}            
-            dt = datetime.strptime(last_commit_date, "%Y-%m-%dT%H:%M:%SZ")
-            dt = dt + timedelta(hours=9)    #  JST にするため 9時間加算
-            attr['line'] = line_count
-            attr['cdate'] = dt
-            attr['message'] = last_commit_message
-            file_data[file_path] = attr
-            total_line += line_count
-            all_line += line_count
-            num_file += 1 
-            all_num_file += 1
-            if dt > last_update :
-                last_update = dt
-
-        repo_info[repo_name] = file_data
-        repo_data = {}
-        repo_data['line'] = total_line
-        repo_data['num_file'] = num_file
-        repo_data['last_update'] = last_update
-        repo_line[repo_name] = repo_data
-
 
 def read_repodata() :
     global repo_line
@@ -114,7 +69,6 @@ def read_repodata() :
             repo_line[data[0]] = repo_data
 
 # repodatafile を読んで  all_past_data を作成する
-#    TODO:  all_past_data は未使用
 def read_dailydata() :
     global all_past_data
     prev_dt = ""
@@ -130,27 +84,18 @@ def read_dailydata() :
                 all_past_data[prev_dt] = past_data
                 past_data = {}
                 prev_dt = dt
-            past_data[data[1]] = (data[2],data[3] )
+            past_data[data[1]] = (int(data[2]),int(data[3]) )
 
     all_past_data[prev_dt] = past_data
-    print(all_past_data)
-
-#   日毎の総行数を求める
-#     TODO:  当日の分は含まれていない
-def carete_line_count_info() :
-    global total_line
-    for k,repo_dic in all_past_data.items() :
-        line_count = 0 
-        for repo, repo_data in repo_dic.items() :
-            line_count += int(repo_data[1])
-        total_line[k] = line_count
 
 def line_count_graph() :
-    for k,count in total_line.items() :
-        out.write(f"['{k}',{count}],")
+    for k,repo in all_past_data.items() :
+        sum = 0 
+        for name,info in repo.items() :
+            sum += info[1]  # 行数
+        out.write(f"['{k}',{sum}],")
 
-
-def display_srclist() :
+def output_srclist() :
     prev_repo = ""
     total_line  = 0
     num_file = 0 
@@ -177,36 +122,6 @@ def display_srclist() :
     out.write(f'<tr><td class=all>合計</td><td class=all>{num_file}</td><td class=all align="right">{total_line}</td>'
               f'<td class=all></td><td class=all></td></tr>\n')
 
-
-# TODO:  将来的には srcdata.txt に出力するのみにし、表示は別機能でおこなう
-def output_srclist() :
-    utc = pytz.utc
-    jst = pytz.timezone("Asia/Tokyo")
-    prev_repo = ""
-    fp = open(srcdatafile,"w")
-    for repo,file_data in repo_info.items() :
-
-        for filen,attr in file_data.items() :
-            if repo != prev_repo :   #  同じrepoの時は最初の行のみ repo名を表示
-                prev_repo = repo
-                reponame = repo
-            else :              
-                reponame = ""
-
-            dt_str = attr["cdate"].strftime("%y/%m/%d %H:%M")
-            repo_data = repo_line[repo]
-            total_line = repo_data['line']
-            num_file = repo_data['num_file']
-            out.write(f'<tr><td>{reponame}</td><td>{filen}</td><td align="right">{attr["line"]}</td>'
-                      f'<td>{dt_str}</td><td>{attr["message"]}</td></tr>\n')
-            fp.write(f'{repo}\t{filen}\t{attr["line"]}\t{dt_str}\t{attr["message"]}\n')
-            
-
-        out.write(f'<tr><td class=all>合計</td><td class=all  align="right">{num_file}</td>'
-                  f'<td class=all align="right">{total_line}</td>'
-                  f'<td class=all>---</td><td class=all>---</td></tr>\n')
-    fp.close()
-
 def output_repolist() : 
     sum_line = 0 
     sum_files = 0 
@@ -223,55 +138,6 @@ def output_repolist() :
     out.write(f'<tr><td class=all>合計</td><td class=all align="right">{sum_files}</td>'
               f'<td class=all align="right">{sum_line}</td><td class=all>--</td></tr>')
 
-def get_repositories(username, token):
-    url = f"https://api.github.com/users/{username}/repos"
-    headers = {"Authorization": f"token {token}"}
-
-    response = requests.get(url, headers=headers, verify=False)
-    response.raise_for_status()
-
-    repos = response.json()
-    return [repo['name'] for repo in repos]
-
-def get_files_in_repository(username, repo_name, token):
-    url = f"https://api.github.com/repos/{username}/{repo_name}/git/trees/main?recursive=1"
-    headers = {"Authorization": f"token {token}"}
-
-    response = requests.get(url, headers=headers, verify=False)
-    if response.status_code == 404 :
-        url = f"https://api.github.com/repos/{username}/{repo_name}/git/trees/master?recursive=1"
-        response = requests.get(url, headers=headers, verify=False)
-
-    response.raise_for_status()
-
-    tree = response.json().get('tree', [])
-    return [item['path'] for item in tree if item['type'] == 'blob']
-
-def get_file_details(username, repo_name, file_path, token):
-    url = f"https://api.github.com/repos/{username}/{repo_name}/contents/{file_path}"
-    headers = {"Authorization": f"token {token}"}
-
-    response = requests.get(url, headers=headers, verify=False)
-    response.raise_for_status()
-
-    file_data = response.json()
-    file_content = requests.get(file_data['download_url'],verify=False).text
-    line_count = len(file_content.splitlines())
-
-    commit_url = f"https://api.github.com/repos/{username}/{repo_name}/commits?path={file_path}&per_page=1"
-    commit_response = requests.get(commit_url, headers=headers, verify=False)
-    commit_response.raise_for_status()
-    commits = commit_response.json()
-
-    if commits:
-        last_commit_date = commits[0]['commit']['committer']['date']
-        last_commit_message = commits[0]['commit']['message']
-    else:
-        last_commit_date = "Unknown"
-        last_commit_message = "No commit message"
-
-    return line_count, last_commit_date, last_commit_message
-
 def output_current_date(s):
     global today_yymmdd
     today_datetime = datetime.today()
@@ -286,8 +152,7 @@ def parse_template() :
     out = open(resultfile,'w' ,  encoding='utf-8')
     for line in f :
         if "%srclist%" in line :
-            #output_srclist()
-            display_srclist()
+            output_srclist()
             continue
         if "%repolist%" in line :
             output_repolist()
