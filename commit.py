@@ -8,15 +8,16 @@ from datetime import date
 #from datetime import datetime, timedelta
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/10/16 v0.10 以前のデータはキャッシュを利用する
-version = "0.10"
+# 25/11/17 v0.11 このソースはデータ出力のみにする。表示は view.py でおこなう
+version = "0.11"
 
 appdir = os.path.dirname(os.path.abspath(__file__))
 conffile = appdir + "/repoview.conf"
 checkdate = appdir + "/checkdate.txt"
 templatefile = appdir + "/cmt_templ.htm"
 resultfile = appdir + "/commit.htm"
-chachefile = appdir + "/cache.txt"
+chachefile = appdir + "/cache.txt"    # 将来的に廃止
+commitfile = appdir + "/commit.txt"
 
 commit_info = {}  # コミット情報   辞書  キー  repo名  値  コミット数
 
@@ -35,6 +36,7 @@ def main_proc():
 
     parse_template()
     write_chache()
+    write_commitdata()
 #    write_datetime()
 
 #   月別コミット情報 df_monthly_commit を作成する
@@ -104,6 +106,17 @@ def write_chache() :
         cf.write(f'{yymm}\t{count}\t{repo}\n')
     
     cf.close()
+
+def write_commitdata() :
+    cf = open(commitfile,'w')
+    for _,row in df_monthly_commit.iterrows() :
+        yymm = row["yymm"]
+        count = row["count"]
+        repo = row["repo"]
+        cf.write(f'{yymm}\t{count}\t{repo}\n')
+    
+    cf.close()
+
 
 #   リポジトリ情報取得
 def get_repositories(username, token):
