@@ -8,8 +8,8 @@ from datetime import date
 #from datetime import datetime, timedelta
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/11/17 v0.11 このソースはデータ出力のみにする。表示は view.py でおこなう
-version = "0.11"
+# 25/11/18 v0.12 2024年からのコミット情報を取得
+version = "0.12"
 
 appdir = os.path.dirname(os.path.abspath(__file__))
 conffile = appdir + "/repoview.conf"
@@ -31,7 +31,7 @@ def main_proc():
     if not token:
         print("Error: GitHub token is not set in the environment variables.")
         return
-    read_chache()
+    read_commitdata()
     create_df_monthly_commit()
 
     parse_template()
@@ -43,26 +43,28 @@ def main_proc():
 def create_df_monthly_commit() :
     global df_monthly_commit    # 月ごとのコミット数 df  カラム yymm 年月  count コミット数  repo リポ数
 
-    yy = 2025    #  暫定
+    start_yy = 2024    #  暫定
     today_date = date.today()   
+    today_yy = today_date.year
     today_mm = today_date.month
     rows = []
-    for mm in range(1,13) :
-        if mm > today_mm :
-            break
-        key = (yy - 2000) * 100 + mm    #  yy は西暦4桁なので2桁になおす
-        if key in monthly_commit :
-            data = monthly_commit[key]
-            count = data[0]
-            repo = data[1]
-        else :
-            start_date =  date(yy, mm, 1)
-            last_day = calendar.monthrange(yy, mm)[1]   # 月の最終日
-            final_date = date(yy, mm, last_day)
-            dic_info = get_period_commit_info(start_date,final_date)
-            count = dic_info['count']
-            repo = dic_info['repo']
-        rows.append([key, count , repo])
+    for yy in range(start_yy,today_yy+1) :
+        for mm in range(1,13) :
+            if mm > today_mm and yy == today_yy :
+                break
+            key = (yy - 2000) * 100 + mm    #  yy は西暦4桁なので2桁になおす
+            if key in monthly_commit :
+                data = monthly_commit[key]
+                count = data[0]
+                repo = data[1]
+            else :
+                start_date =  date(yy, mm, 1)
+                last_day = calendar.monthrange(yy, mm)[1]   # 月の最終日
+                final_date = date(yy, mm, last_day)
+                dic_info = get_period_commit_info(start_date,final_date)
+                count = dic_info['count']
+                repo = dic_info['repo']
+            rows.append([key, count , repo])
 
     df_monthly_commit = pd.DataFrame(rows, columns=["yymm", "count", "repo"])
 
@@ -81,14 +83,14 @@ def monthly_commit_count() :
         repo = row["repo"]
         out.write(f'<tr><td align="right">{yymm}</td><td align="right">{count}</td><td align="right">{repo}</td></tr>\n')
 
-def read_chache() :
+def read_commitdata() :
     global monthly_commit
 
     monthly_commit = {}
-    if not os.path.isfile(chachefile) :   # キャッシュファイルがなければ何もしない
+    if not os.path.isfile(commitfile) :   # キャッシュファイルがなければ何もしない
         return
     today_key = (today_yy - 2000) * 100 + today_mm
-    with open(chachefile) as f:
+    with open(commitfile) as f:
         for line in f:
             line = line.rstrip()    # 改行を削除
             data = line.split("\t")
