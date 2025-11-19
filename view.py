@@ -5,13 +5,14 @@ import requests
 import os
 import pytz
 import datetime
+import pandas as pd
 from datetime import datetime
 from datetime import date,timedelta
 from ftplib import FTP_TLS
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# 25/11/10 v1.00 総行数グラフ表示
-version = "1.00"     
+# 25/11/19 v1.01 コミット情報追加
+version = "1.01"     
 
 out =  ""
 logf = ""
@@ -22,7 +23,10 @@ templatefile = appdir + "/repo_templ.htm"
 dailyfile =  appdir + "/daily.txt"    #  日付ごと repo ごとのソース行数
 repodatafile =  appdir + "/repodata.txt"   #  repoの情報を保存
 srcdatafile = appdir + "/srcdata.txt"       #  ソースの行数等のテータを保存
+commitfile = appdir + "/commit.txt"
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+df_monthly_commit = None   # 月ごとのコミット数 df  カラム yymm 年月  count コミット数  repo リポ数
 
 #   全情報
 #     キー  repo名  値  file_data 
@@ -52,6 +56,7 @@ def main():
 
     read_repodata()
     read_dailydata()
+    read_commitdata()
 
     parse_template()
     ftp_upload()
@@ -67,6 +72,8 @@ def read_repodata() :
             repo_data['line'] = int(data[2])
             repo_data['last_update'] = data[3]
             repo_line[data[0]] = repo_data
+
+
 
 # repodatafile を読んで  all_past_data を作成する
 def read_dailydata() :
@@ -138,6 +145,37 @@ def output_repolist() :
     out.write(f'<tr><td class=all>合計</td><td class=all align="right">{sum_files}</td>'
               f'<td class=all align="right">{sum_line}</td><td class=all>--</td></tr>')
 
+def read_commitdata() :
+    global df_monthly_commit
+
+    rows = []
+    with open(commitfile) as f:
+        for line in f:
+            line = line.rstrip()    # 改行を削除
+            data = line.split("\t")
+            key = int(data[0])
+            count = int(data[1])
+            repo = int(data[2])
+            rows.append([key, count , repo])
+
+    df_monthly_commit = pd.DataFrame(rows, columns=["yymm", "count", "repo"])
+    print(df_monthly_commit)
+
+#   月別コミット数グラフ
+def commit_graph() :
+    for _,row in df_monthly_commit.iterrows() :
+        yymm = row["yymm"]
+        count = row["count"]
+        out.write(f"['{yymm}',{count}],") 
+
+#   月別コミット数、リポジトリ情報
+def monthly_commit_count() :
+    for _,row in df_monthly_commit.iterrows() :
+        yymm = row["yymm"]
+        count = row["count"]
+        repo = row["repo"]
+        out.write(f'<tr><td align="right">{yymm}</td><td align="right">{count}</td><td align="right">{repo}</td></tr>\n')
+
 def output_current_date(s):
     global today_yymmdd
     today_datetime = datetime.today()
@@ -159,6 +197,12 @@ def parse_template() :
             continue
         if "%line_count_graph%" in line :
             line_count_graph()
+            continue
+        if "%commit_graph%" in line :
+            commit_graph()
+            continue
+        if "%monthly_commit_count%" in line :
+            monthly_commit_count()
             continue
         if "%version%" in line :
             s = line.replace("%version%",version)
